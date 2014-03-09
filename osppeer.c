@@ -22,6 +22,9 @@
 #include <limits.h>
 #include "md5.h"
 #include "osp2p.h"
+#include <sys/wait.h>
+
+
 
 int evil_mode;			// nonzero iff this peer should behave badly
 
@@ -688,6 +691,7 @@ int main(int argc, char *argv[])
 	struct in_addr tracker_addr;
 	int tracker_port;
 	char *s;
+	int child_count;
 	const char *myalias;
 	struct passwd *pwent;
 
@@ -758,14 +762,70 @@ int main(int argc, char *argv[])
 	listen_task = start_listen();
 	register_files(tracker_task, myalias);
 
-	// First, download files named on command line.
-	for (; argc > 1; argc--, argv++)
-		if ((t = start_download(tracker_task, argv[1])))
-			task_download(t, tracker_task);
+	//Commit from Meet
+	//Using event driven programming, from the tutorials on the spec.
+	//Goal is to make start_download and task_download non blocking.
+	child_count = 0;
+	pid_t pid;
 
-	// Then accept connections from other peers and upload files to them!
+	// First, download files named on command line.
+	for (; argc > 1 && !evil_mode; argc--, argv++)
+	{
+		if ((t = start_download(tracker_task, argv[1])))
+		{
+			pid = fork();
+			 if  (pid == 0) //0 is good, we can start out townload task
+			{
+				task_download(t, tracker_task);
+				exit(0);
+			}
+			else if (pid == -1)
+			{
+				error("DOWNLOAD FORKING FAILED\n"); //As per the spec we need to throw an error
+			}
+			else {}
+			//Need to free memory
+			if(pid > 0)
+			{
+				child_count++;
+				task_free(t);
+			}	
+		}
+		
+	}
+
+	
+	/* Cleaning up any/all processes. We have no clue when an upload request can be issue
+	It could be while we are downloading, so it is important, we clean first. */
+	while(child_count-- > 0)
+		waitpid(-1, NULL, 0);
+
+	
+	/*For upload! We need to use  a waitpid, because we need to wait before processing more forks
+	I want to know, when my child process is exiting. But I don't want to block my application, so I use WNOHANG.*/
+
 	while ((t = task_listen(listen_task)))
-		task_upload(t);
+	{
+		waitpid(-1, NULL, WNOHANG);
+		pid = fork();
+
+		// 0 is good, its a child process
+		if(pid == 0)
+		{
+			task_upload(t);
+			exit(0);
+		}
+		else if(pid < 0)
+		{
+			error("UPLOAD FORKING FAILED\n");
+			continue;
+		}
+		else{}
+		
+		//Memory and file descriptors to be freed in parents
+		if(pid > 0)
+			task_free(t);
+	}
 
 	return 0;
 }
