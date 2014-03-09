@@ -35,6 +35,30 @@ before we move to uploads and listen for peers.
 
 # EXERCISE 2A: What conditions did you find and fix that would have
 #    triggered a buffer overrun bug?  (~1-3 sentences each)
+Conditions that triggered a buffer overrun are :
+1) In static void task_upload(task_t *t)
+There is a call to  (osp2p_snscanf(t->buf, t->tail, "GET %s OSP2P\n", t->filename) < 0).
+In a snscanf function, the second arguement is the length of the string to be placed 
+in the buffer, this could be problematic and cause the buffer overrun because tail t->tail
+could be bigger then the allowed legnth
+2)In task_t *start_download(task_t *tracker_task, const char *filename) tgere is a call to
+strcpy(t->filename, filename). This could potentially be exploited to cause buffer overun.
+The strcpy function merely writes the entire string into memory, overwriting whatever 
+came after it. Does not matter what the length of the string is.
+
+How did we fix it?
+1) By replacing  (osp2p_snscanf(t->buf, t->tail, "GET %s OSP2P\n", t->filename) < 0),
+with (osp2p_snscanf(t->buf, FILENAMESIZ-1, "GET %s OSP2P\n", t->filename) < 0).
+Now the length of the string is limited by FILENAMESIZ - 1.
+2) By replacing strcpy(t->filename, filename) with 
+ strncpy(t->filename, filename, FILENAMESIZ-1); 
+ t->filename[FILENAMESIZ-1] = '\0';
+ The strncpy function truncates the string to the correct 
+ length(thus avoiding the buffer overflow), but without the terminating null character.
+ Thus we manually added the null character.
+
+
+ 
 
 # EXERCISE 2B: What other robustness problems did you fix?  (~1-3 sentences
 #    each)

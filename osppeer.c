@@ -479,7 +479,13 @@ task_t *start_download(task_t *tracker_task, const char *filename)
 		error("* Error while allocating task");
 		goto exit;
 	}
-	strcpy(t->filename, filename);
+	/*This is where the buffer overrun is caused,the strcpy function merely writes the 
+	 entire string into memory, overwriting whatever came after it. Does not matter what the length of the string is
+	 Thus we should use the strncpy function. The strncpy function truncates the string to the correct 
+	 length, but without the terminating null character. 
+	strcpy(t->filename, filename);*/
+	 strncpy(t->filename, filename, FILENAMESIZ-1); 
+	t->filename[FILENAMESIZ-1] = '\0';
 
 	// add peers
 	s1 = tracker_task->buf;
@@ -646,10 +652,21 @@ static void task_upload(task_t *t)
 	}
 
 	assert(t->head == 0);
+
+	/* Another buffer overflow bug, in a snscanf function, the second arguement
+	is the length of the string to be placed in the buffer, this could be problematic,
+	thus we replaced it with FILENAMESIZ-1.
 	if (osp2p_snscanf(t->buf, t->tail, "GET %s OSP2P\n", t->filename) < 0) {
 		error("* Odd request %.*s\n", t->tail, t->buf);
 		goto exit;
 	}
+	*/
+
+	if (osp2p_snscanf(t->buf, FILENAMESIZ-1, "GET %s OSP2P\n", t->filename) < 0) {
+		error("* Odd request %.*s\n", t->tail, t->buf);
+		goto exit;
+	}
+	t->head = t->tail = 0;
 	t->head = t->tail = 0;
 
 	t->disk_fd = open(t->filename, O_RDONLY);
