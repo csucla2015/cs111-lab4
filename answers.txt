@@ -13,17 +13,25 @@
 # information you'd like us to know, please add it at the end of the file.
 
 # Partner 1
-Name: 
-Student ID: 
-Email: 
+Name: Meet Bhagdev
+Student ID: 104079094
+Email: meetbhagdev@ucla.edu
 
 # Partner 2 (if you're working in a team)
-# Name: 
-# Student ID: 
-# Email: 
+# Name: Akshaan Kakar
+# Student ID: 804029538
+# Email: akshaan@ucla.edu
 
 # EXERCISE 1: What method you used to make your peer download and upload
 #    files in parallel?  (~1-3 sentences)
+We used the fork() command to implement that parallel upload and dowload. Based on the pid we receive from the forking,
+we decide what to do. Previously, it would simply block, but using the event driven approach we make it do the appropriate tast.
+The child process will execute the task(download or upload). For eg the client will fork once for every download request,
+but if the fork does not succeed, the client won't try to download the new file and will be run again.
+We made sure that all downloads finish first by using a blocking model. This ensured that we reclaimed any resources
+before we move to uploads and listen for peers. 
+
+
 
 # EXERCISE 2A: What conditions did you find and fix that would have
 #    triggered a buffer overrun bug?  (~1-3 sentences each)
