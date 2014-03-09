@@ -37,6 +37,7 @@ static int listen_port;
  * Holds all information relevant for a peer or tracker connection, including
  * a bounded buffer that simplifies reading from and writing to peers.
  */
+#define MAXIMUM_FILE_SIZE 1000000000
 
 #define TASKBUFSIZ	4096	// Size of task_t::buf
 #define FILENAMESIZ	256	// Size of task_t::filename
@@ -578,6 +579,18 @@ static void task_download(task_t *t, task_t *tracker_task)
 			error("* Disk write error");
 			goto try_again;
 		}
+		//////////////////////////////////////////
+		//////EXERCISE 2B, ROBUSTNESS/////////////
+		//////////////////////////////////////////
+		/*This is to prevent transfer of infintie length data on receiving a request form a peer. 
+		If the total_writen field exceeds a certain pre defined number(which can be changed) then 
+		we throw and error and try again */
+	
+		if (t->total_written > MAXIMUM_FILE_SIZE) {
+			error("FILE TOO LARGE");
+			goto try_again;
+		}
+
 	}
 
 	// Empty files are usually a symptom of some error.
@@ -667,7 +680,26 @@ static void task_upload(task_t *t)
 		goto exit;
 	}
 	t->head = t->tail = 0;
-	t->head = t->tail = 0;
+
+		/* EXERCISE 2 Robust part*/
+
+	//The filename is too long, we need to throw and error to make our implementation of the client robust and secure
+	if(strlen(t->buf) > FILENAMESIZ + 12 || strlen(t->filename) > FILENAMESIZ){
+		error("INVALID/LONG FILENAME\n");
+		goto exit;
+	}
+
+
+	/* EXERCISE 2B Main part
+	strchr returns a pointer to the first occurrence of character in the C string .
+	Thus we try to find / in the t->filename, if we get anything but 0, that means
+	it is refers to a directory */
+
+	if(strchr(t->filename, '/') != NULL)
+	{
+		error("Bad Filename: %s refers to a directory\n", t->filename);
+		goto exit;
+	}
 
 	t->disk_fd = open(t->filename, O_RDONLY);
 	if (t->disk_fd == -1) {

@@ -63,6 +63,21 @@ Now the length of the string is limited by FILENAMESIZ - 1.
 # EXERCISE 2B: What other robustness problems did you fix?  (~1-3 sentences
 #    each)
 
+1 . We made sure the only files in current directories could be accessed. Fixed the bug,
+by which someone could request a file with the filepath(including directory). This could be 
+explouted maliciosly. We used strchr to do so. Strchr returns a pointer to the first occurrence 
+of character in the C string . Thus we try to find / in the t->filename, if we get anything but 0, 
+that means it is refers to a directory and we throw an error.
+
+2. We fixed the long filename problem. If the requested filename is bigger then the max FILENAMESIZ,
+then we throw an error. 
+ 
+3. We prevented the transfer of infintie length data on receiving a request form a peer. 
+If the total_writen field exceeds a certain pre defined number(which can be changed) then 
+we throw and error and try again 
+
+//ADD MORE HERE
+
 # EXERCISE 3: Describe the attacks you implemented for "evil mode".  Why
 #    are they attacks?  (~3-10 sentences each)
 
