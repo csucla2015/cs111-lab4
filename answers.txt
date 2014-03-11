@@ -76,6 +76,15 @@ then we throw an error.
 If the total_writen field exceeds a certain pre defined number(which can be changed) then 
 we throw and error and try again 
 
+4. We fixed the error were the popular peer causes the program to crash. We realized,
+that the buffer is not big enough to accomodate a large number of peers. If this happens,
+the buffer gets full and we are made to disconnect from the tracker. This could have been fixed 
+in several ways.
+We could have changed the way the buffer is read such that on receiving too many requests
+it is dynamically resized. Or we could have made it read on complete lines.
+Since this might interfere with the way the client works and make us fail test cases, we
+decided to increase the buffer size and thus accomodate more requests.
+
 //ADD MORE HERE
 
 # EXERCISE 3: Describe the attacks you implemented for "evil mode".  Why
