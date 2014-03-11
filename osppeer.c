@@ -37,9 +37,11 @@ static int listen_port;
  * Holds all information relevant for a peer or tracker connection, including
  * a bounded buffer that simplifies reading from and writing to peers.
  */
-#define MAXIMUM_FILE_SIZE 1000000000
+//MAX FILE SIZE IS KEPT AS 1 GB
+#define MAXIMUM_FILE_SIZE 1073741824
 
-#define TASKBUFSIZ	4096	// Size of task_t::buf
+//TAST 2. INCREASED THE BUFFER SIZE
+#define TASKBUFSIZ	65536	// Size of task_t::buf
 #define FILENAMESIZ	256	// Size of task_t::filename
 
 typedef enum tasktype {		// Which type of connection is this?
