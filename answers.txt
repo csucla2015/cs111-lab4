@@ -91,6 +91,12 @@ decided to increase the buffer size and thus accomodate more requests.
 #    are they attacks?  (~3-10 sentences each)
 
 # Extra credit problems
-#Extra credit problem: none
+#Extra credit problem: MD5 Checksum support
+
+Added support for checking MD5 checksums for the downloaded file. 
+Using the MD5HASH RPC, we get the hash from the tracker in start_download(). 
+During task_download(), we calculate the hash for the file after downloading it from the peer and then compare the two hashes.
+If they are the same, the download continues. 
+Else, the file is corrupted and the download is terminated.
 
 # Add any other information you'd like us to know below this line.
