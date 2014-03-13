@@ -79,6 +79,7 @@ typedef struct task {
 				// function initializes this list;
 				// task_pop_peer() removes peers from it, one
 				// at a time, if a peer misbehaves.
+	char hash[MD5_TEXT_DIGEST_SIZE];
 } task_t;
 
 
@@ -503,11 +504,22 @@ task_t *start_download(task_t *tracker_task, const char *filename)
 	if (s1 != tracker_task->buf + messagepos)
 		die("osptracker's response to WANT has unexpected format!\n");
 
+	osp2p_writef(tracker_task->peer_fd,"MD5SUM %s\n", filename);
+	messagepos = read_tracker_response(tracker_task);
+
+	s1 = memchr(s1,'\n',messagepos);
+
+	if(tracker_task->buf[messagepos] == '2')
+	{
+		osp2p_snscanf(tracker_task->buf,(s1 - tracker_task->buf),tracker_task->hash);
+		tracker_task->hash[MD5_TEXT_DIGEST_SIZE - 1] = 0;
+	}
+
  exit:
 	return t;
 }
 
-
+int md5_hash(char* filename, char* digest);
 // task_download(t, tracker_task)
 //	Downloads the file specified by the input task 't' into the current
 //	directory.  't' was created by start_download().
@@ -629,6 +641,29 @@ static void task_download(task_t *t, task_t *tracker_task)
 		return;
 	}
 	error("* Download was empty, trying next peer\n");
+
+	// Compare hashes after downloading
+	
+	char hash[MD5_TEXT_DIGEST_SIZE];
+
+	if(md5_hash(t->disk_filename,hash) < 0) {
+	message("Digest calculation failed for '%s'.", t->disk_filename);
+	task_free(t);
+	return;
+	}
+
+	if(md5_hash(t->disk_filename,hash) == 0) {
+		if(strncmp(hash,tracker_task->hash,MD5_TEXT_DIGEST_SIZE == 0))
+			message("MD5 hash values match for '%s'.",t->disk_filename);
+
+		else {
+			message("MD5 hash values do not match. The downloaded '%s' is corrupted.", t->disk_filename);
+			task_free(t);
+			return;
+
+	}
+
+	}
 
     try_again:
 	if (t->disk_filename[0])
@@ -924,4 +959,36 @@ int main(int argc, char *argv[])
 	}
 
 	return 0;
+}
+
+int md5_hash(char* file_name, char digest[MD5_TEXT_DIGEST_SIZE])
+{
+	const int BUF_SIZ = 1024;
+	int file_desc = open(file_name,O_RDWR);
+
+	if(file_desc < 0) return file_desc;
+
+	else {
+		char buffer[BUF_SIZ + 1];
+		char next_char = 0;
+		md5_state_t state;
+		md5_init(&state);
+		while(1){
+			int size;
+			if((size = read(file_desc,buffer,BUF_SIZ)))
+			{
+				md5_append(&state,(md5_byte_t*)buffer,size);
+			}
+
+		else {
+			md5_finish_text(&state,digest,1);
+			digest[MD5_TEXT_DIGEST_SIZE] = 0;
+			close(file_desc);
+			return 0;
+
+			}
+
+			}
+	}
+
 }
